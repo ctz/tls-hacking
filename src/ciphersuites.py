@@ -365,7 +365,7 @@ class CipherSuite(Enum16):
     MAX = 0xffff
 
     @staticmethod
-    def firefox_tlsv1():
+    def firefox_default_set():
         return [
             CipherSuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV,
             CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
@@ -403,4 +403,123 @@ class CipherSuite(Enum16):
             CipherSuite.TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA,
             CipherSuite.SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA,
             CipherSuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA
+        ]
+    
+    @staticmethod
+    def chrome_default_set():
+        return [
+            CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA,
+            CipherSuite.TLS_DHE_RSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_ECDH_RSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_CAMELLIA_256_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA,
+            CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_ECDHE_RSA_WITH_RC4_128_SHA,
+            CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_RC4_128_SHA,
+            CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_ECDH_RSA_WITH_RC4_128_SHA,
+            CipherSuite.TLS_ECDH_RSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_ECDH_ECDSA_WITH_RC4_128_SHA,
+            CipherSuite.TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_SEED_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_CAMELLIA_128_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_RC4_128_SHA,
+            CipherSuite.TLS_RSA_WITH_RC4_128_MD5,
+            CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA,
+            CipherSuite.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
+            CipherSuite.TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA,
+            CipherSuite.TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA,
+            CipherSuite.TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA,
+            CipherSuite.SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA
+        ]
+    
+    def ie9_default_set():
+        return [
+            CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_RC4_128_SHA,
+            CipherSuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
+            CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_RC4_128_MD5,
+        ]
+    
+    def ie9_tls12_set():
+        return [
+            CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA256,
+            CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_AES_256_CBC_SHA256,
+            CipherSuite.TLS_RSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_RC4_128_SHA,
+            CipherSuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
+            CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+            CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+            CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+            CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+            CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384,
+            CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_AES_128_CBC_SHA256,
+            CipherSuite.TLS_DHE_DSS_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_AES_256_CBC_SHA256,
+            CipherSuite.TLS_DHE_DSS_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_RC4_128_MD5
+        ]
+    
+    def preferred_set():
+        """
+        Preferred as in 'not known to be entirely broken'
+        """
+        return [
+            # order: forward secrecy > not
+            #        ec > dlc > ifc
+            #        signed kx > pubkey encryption
+            #        sha384 > sha256
+            CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+            CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+
+            CipherSuite.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+            CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+            
+            CipherSuite.TLS_DHE_DSS_WITH_AES_256_GCM_SHA384,
+            CipherSuite.TLS_DHE_DSS_WITH_AES_128_GCM_SHA256,
+
+            CipherSuite.TLS_DHE_RSA_WITH_AES_256_GCM_SHA384,
+            CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256,
+
+            CipherSuite.TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384,
+            CipherSuite.TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256,
+
+            CipherSuite.TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384,
+            CipherSuite.TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256,
+            
+            CipherSuite.TLS_DH_DSS_WITH_AES_256_GCM_SHA384,
+            CipherSuite.TLS_DH_DSS_WITH_AES_128_GCM_SHA256,
+            
+            CipherSuite.TLS_DH_RSA_WITH_AES_256_GCM_SHA384,
+            CipherSuite.TLS_DH_RSA_WITH_AES_128_GCM_SHA256,
+
+            CipherSuite.TLS_RSA_WITH_AES_256_GCM_SHA384,
+            CipherSuite.TLS_RSA_WITH_AES_128_GCM_SHA256,
         ]

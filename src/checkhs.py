@@ -1,4 +1,5 @@
-import tls
+from protocol_types import *
+
 import sys
 import io
 
@@ -22,18 +23,17 @@ def decode_messages(b):
     f = io.BytesIO(b)
 
     while f.tell() != ll:
-        yield tls.Message.read(f)
+        yield Message.read(f)
 
 if __name__ == '__main__':
-    _, fn = sys.argv
+    for fn in sys.argv[1:]:
+        if fn.endswith('.hex'):
+            b = readhex(fn)
+        else:
+            b = readbin(fn)
 
-    if fn.endswith('.hex'):
-        b = readhex(fn)
-    else:
-        b = readbin(fn)
-
-    for msg in decode_messages(b):
-        rb = msg.encode()
-        msg2 = tls.Message.decode(bytes(rb))
-        print(msg)
-        print(msg2)
+        for msg in decode_messages(b):
+            rb = msg.encode()
+            msg2 = Message.decode(bytes(rb))
+            print(msg)
+            print(msg2)
