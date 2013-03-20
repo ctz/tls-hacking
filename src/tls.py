@@ -8,7 +8,7 @@ from base import Enum8, Enum16, Decode, Encode, Read, Struct
 class ProtocolVersion(Enum16):
     SSLv2 = 0x0200
     SSLv3 = 0x0300
-    TLSv1 = 0x0301
+    TLSv1_0 = 0x0301
     TLSv1_1 = 0x0302
     TLSv1_2 = 0x0303
     MAX = 0xffff
@@ -140,6 +140,7 @@ class Handshake(Struct):
             HandshakeType.ClientHello: ClientHello.decode,
             HandshakeType.ServerHello: ServerHello.decode,
             HandshakeType.Certificate: Certificate.decode,
+            HandshakeType.ServerHelloDone:  ServerHelloDone.decode
         }
 
         if self.type not in decoders:
@@ -204,8 +205,10 @@ class Extension(Struct):
         self.data = data
 
     def encode(self):
+        body = bytes(self.data)
         return ExtensionType.encode(self.type) + \
-               Encode.item_vec(Encode.u16, Encode.u8, self.data)
+               Encode.u16(len(body)) + \
+               list(body)
 
     @staticmethod
     def read(f):
@@ -214,8 +217,96 @@ class Extension(Struct):
         e.data = Read.vec(f, Read.u16, Read.u8)
         return e
 
+class ServerNameExtensionBody(Struct):
+    def __init__(self, names = None):
+        Struct.__init__(self)
+        self.names = names if names else []
+
+    def encode(self):
+        return Encode.vec(Encode.u16, self.names)
+
+    @staticmethod
+    def read(f):
+        return ServerNameExtensionBody(Read.vec(f, Read.u16, ServerName.read))
+
+class ServerNameType(Enum8):
+    HostName = 0
+    MAX = 0xff
+
+class ServerName(Struct):
+    def __init__(self, type, body):
+        Struct.__init__(self)
+        self.type = type
+        self.body = body
+
+    def encode(self):
+        return ServerNameType.encode(self.type) + \
+               Encode.item_vec(Encode.u16, Encode.u8, self.body)
+    
+    @staticmethod
+    def hostname(h):
+        return ServerName(ServerNameType.HostName, bytes(h, 'utf-8'))
+
+    
+    @staticmethod
+    def read(f):
+        sn = ServerName(None, None)
+        sn.type = ServerNameType.read(f)
+        sn.body = Read.vec(f, Read.u16, Read.u8)
+        return sn
+
+class NamedCurve(Enum16):
+    sect163k1 = 1
+    sect163r1 = 2
+    sect163r2 = 3
+    sect193r1 = 4
+    sect193r2 = 5
+    sect233k1 = 6
+    sect233r1 = 7
+    sect239k1 = 8
+    sect283k1 = 9
+    sect283r1 = 10
+    sect409k1 = 11
+    sect409r1 = 12
+    sect571k1 = 13
+    sect571r1 = 14
+    secp160k1 = 15
+    secp160r1 = 16
+    secp160r2 = 17
+    secp192k1 = 18
+    secp192r1 = 19
+    secp224k1 = 20
+    secp224r1 = 21
+    secp256k1 = 22
+    secp256r1 = 23
+    secp384r1 = 24
+    secp521r1 = 25
+    arbitrary_explicit_prime_curves = 0xFF01
+    arbitrary_explicit_char2_curves = 0xFF02
+
+    MAX = 0xffff
+
+class EllipticCurvesExtensionBody(Struct):
+    def __init__(self, curves = None):
+        Struct.__init__(self)
+        self.curves = curves if curves else []
+
+    def encode(self):
+        return Encode.item_vec(Encode.u16, NamedCurve._Encode, self.curves)
+
+    @staticmethod
+    def read(f):
+        return EllipticCurvesExtensionBody(Read.vec(f, Read.u16, NamedCurve.read))
+    
+    @staticmethod
+    def all_named_curves():
+        return EllipticCurvesExtensionBody(list(range(NamedCurve.sect163k1,
+                                                      NamedCurve.secp521r1 + 1)))
+
+
 class ClientHello(Struct):
-    def __init__(self, version = None, random = None, session_id = None, ciphersuites = None, compressions = None, extensions = None):
+    def __init__(self, version = None, random = None, session_id = None,
+                 ciphersuites = None, compressions = None, extensions = None):
         Struct.__init__(self)
         self.version = version if version else ProtocolVersion._Highest
         self.random = random if random else Random.generate()
@@ -251,9 +342,18 @@ class ClientHello(Struct):
         return c
 
     @staticmethod
-    def exploratory():
-        return ClientHello(ciphersuites = CipherSuite.all(),
-                           compressions = Compression.all())
+    def exploratory(hostname):
+        extensions = [
+            Extension(ExtensionType.ServerName,
+                      ServerNameExtensionBody([ServerName.hostname(hostname)])),
+            Extension(ExtensionType.EllipticCurves,
+                      EllipticCurvesExtensionBody.all_named_curves()),
+            Extension(ExtensionType.RenegotiationInfo, [])
+        ]
+        extensions = []
+        return ClientHello(ciphersuites = CipherSuite.firefox_tlsv1(),
+                           compressions = [Compression.Null, Compression.Deflate],
+                           extensions = extensions)
 
 class ServerHello(Struct):
     def __init__(self, version = None, random = None, session_id = None, ciphersuite = None, compression = None, extensions = None):
@@ -268,7 +368,7 @@ class ServerHello(Struct):
     def encode(self):
         return ProtocolVersion.encode(self.version) + \
                self.random.encode() + \
-               Encode.vec(Encode.u8, self.session_id) + \
+               Encode.item_vec(Encode.u8, Encode.u8, self.session_id) + \
                CipherSuite.encode(self.ciphersuite) + \
                Compression.encode(self.compression) + \
                (Encode.vec(Encode.u16, self.extensions) if self.extensions else [])
@@ -284,9 +384,16 @@ class ServerHello(Struct):
 
         left = f.read()
         if len(left):
-            s.extensions = Decode.vec(left, Read.u16, Extension.read)
+            s.extensions = Read.vec(io.BytesIO(left), Read.u16, Extension.read)
             
         return s
+
+class ServerHelloDone(Struct):
+    def encode(self):
+        return []
+    @staticmethod
+    def read(f):
+        return ServerHelloDone()
 
 class ASN1Cert(Struct):
     def __init__(self, data = None):
@@ -294,7 +401,7 @@ class ASN1Cert(Struct):
         self.data = data
 
     def encode(self):
-        return Encode.vec(Encode.u24, self.data)
+        return Encode.item_vec(Encode.u24, Encode.u8, self.data)
 
     @staticmethod
     def read(f):
@@ -354,24 +461,31 @@ class Message(Struct):
 
 def exploratory_handshake(hostname):
     return Message(ContentType.Handshake,
-                   ProtocolVersion.TLSv1_2,
+                   ProtocolVersion.TLSv1_0,
                    Handshake(HandshakeType.ClientHello,
-                             ClientHello.exploratory()))
+                             ClientHello.exploratory(hostname)))
 
 def build_fatal_alert(why):
     return Message(ContentType.Handshake,
-                   ProtocolVersion.TLSv1_2,
-                   Alert(AlertLevel.Fatal, why))                         
+                   ProtocolVersion.TLSv1_0,
+                   Alert(AlertLevel.Fatal, why))
 
 def test(hostname, port):
     with socket.create_connection((hostname, port), 10) as s:
         f = s.makefile(mode = 'rwb')
-        f.write(bytes(exploratory_handshake(hostname)))
+        hs = exploratory_handshake(hostname)
+        f.write(bytes(hs))
         f.flush()
-        bb = f.read()
-        fd = open('google.bin', 'wb')
-        fd.write(bb)
-        fd.close()
+        with open(hostname + '.bin', 'wb') as fd:
+            while True:
+                try:
+                    d = f.read(1)
+                except:
+                    break
+                if d and len(d):
+                    fd.write(d)
+                else:
+                    break
     
 if __name__ == '__main__':
     v = ContentType.Handshake
@@ -391,11 +505,8 @@ if __name__ == '__main__':
 
     assert bytes(hs) == bytes(newhs)
     assert bytes(newhs) == bytes(new2hs)
-    #test('google.com', 443)
-
-    with open('google.bin', 'rb') as f:
-        print(Message.read(f))
-        print(Message.read(f))
-
-    with open('handshake.bin', 'rb') as f:
-        print(Message.read(f))
+    test('www.amazon.com', 443)
+    test('www.google.com', 443)
+    test('www.play.com', 443)
+    test('www.twitter.com', 443)
+    test('www.github.com', 443)
