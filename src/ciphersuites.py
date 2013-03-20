@@ -403,4 +403,4 @@ class CipherSuite(Enum16):
             CipherSuite.TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA,
             CipherSuite.SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA,
             CipherSuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA
-        ]        
+        ]
