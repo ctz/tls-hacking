@@ -366,6 +366,9 @@ class CipherSuite(Enum16):
 
     @staticmethod
     def firefox_default_set():
+        """
+        TLSv1.0
+        """
         return [
             CipherSuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV,
             CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
@@ -404,9 +407,40 @@ class CipherSuite(Enum16):
             CipherSuite.SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA,
             CipherSuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA
         ]
+
+    @staticmethod
+    def firefox_fallback_set():
+        """
+        SSLv3.
+        """
+        return [
+            CipherSuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV,
+            CipherSuite.TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA,
+            CipherSuite.TLS_DHE_RSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_CAMELLIA_256_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA,
+            CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_SEED_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_CAMELLIA_128_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_RC4_128_SHA,
+            CipherSuite.TLS_RSA_WITH_RC4_128_MD5,
+            CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA,
+            SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA
+        ]
     
     @staticmethod
     def chrome_default_set():
+        """
+        TLSv1.0
+        """
         return [
             CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
             CipherSuite.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
@@ -445,7 +479,38 @@ class CipherSuite(Enum16):
             CipherSuite.SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA,
             CipherSuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA
         ]
+
+    @staticmethod
+    def chrome_fallback_set():
+        """
+        Suites selected by chrome under fallback conditions.
+        SSLv3.
+        """
+        return [
+            CipherSuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV,
+            CipherSuite.TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA,
+            CipherSuite.TLS_DHE_RSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_CAMELLIA_256_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_RC4_128_SHA,
+            CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_SEED_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_CAMELLIA_128_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_RC4_128_SHA,
+            CipherSuite.TLS_RSA_WITH_RC4_128_MD5,
+            CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA,
+            CipherSuite.TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA,
+            CipherSuite.SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA
+        ]
     
+    @staticmethod
     def ie9_default_set():
         return [
             CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA,
@@ -462,6 +527,7 @@ class CipherSuite(Enum16):
             CipherSuite.TLS_RSA_WITH_RC4_128_MD5,
         ]
     
+    @staticmethod
     def ie9_tls12_set():
         return [
             CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA256,
@@ -486,7 +552,52 @@ class CipherSuite(Enum16):
             CipherSuite.TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA,
             CipherSuite.TLS_RSA_WITH_RC4_128_MD5
         ]
-    
+  
+    @staticmethod
+    def safari_default_set():
+        return [
+            CipherSuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV,
+            CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA,
+            CipherSuite.TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA,
+            CipherSuite.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_ECDHE_RSA_WITH_RC4_128_SHA,
+            CipherSuite.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
+            CipherSuite.TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_ECDH_ECDSA_WITH_RC4_128_SHA,
+            CipherSuite.TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA,
+            CipherSuite.TLS_ECDH_RSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_ECDH_RSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_ECDH_RSA_WITH_RC4_128_SHA,
+            CipherSuite.TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_RC4_128_SHA,
+            CipherSuite.TLS_RSA_WITH_RC4_128_MD5,
+            CipherSuite.TLS_RSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
+            CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_DHE_RSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA
+        ]
+
+    @staticmethod
+    def safari_fallback_set():
+        return [
+            CipherSuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV,
+            CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_RC4_128_SHA,
+            CipherSuite.TLS_RSA_WITH_RC4_128_MD5,
+            CipherSuite.TLS_RSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
+            CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA,
+            CipherSuite.TLS_DHE_RSA_WITH_AES_256_CBC_SHA,
+            CipherSuite.TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA
+        ]
+
+    @staticmethod
     def preferred_set():
         """
         Preferred as in 'not known to be entirely broken'
