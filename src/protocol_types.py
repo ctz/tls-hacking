@@ -121,9 +121,7 @@ class ApplicationData(Struct):
 
     @staticmethod
     def read(f):
-        a = ApplicationData()
-        a.data = f.read()
-        return a
+        return ApplicationData(data = f.read())
 
 class Handshake(Struct):
     def __init__(self, type, body):
@@ -145,7 +143,10 @@ class Handshake(Struct):
             HandshakeType.ClientHello: ClientHello.decode,
             HandshakeType.ServerHello: ServerHello.decode,
             HandshakeType.Certificate: Certificate.decode,
-            HandshakeType.ServerHelloDone:  ServerHelloDone.decode
+            HandshakeType.ServerHelloDone: ServerHelloDone.decode,
+            HandshakeType.ClientKeyExchange: ClientKeyExchange.decode,
+            HandshakeType.ServerKeyExchange: ServerKeyExchange.decode,
+            HandshakeType.Finished: Finished.decode,
         }
 
         if self.type not in decoders:
@@ -323,7 +324,7 @@ class ClientHello(Struct):
         o = []
         o.extend(ProtocolVersion.encode(self.version))
         o.extend(self.random.encode())
-        o.extend(Encode.vec(Encode.u8, self.session_id))
+        o.extend(Encode.item_vec(Encode.u8, Encode.u8, self.session_id))
         o.extend(Encode.item_vec(Encode.u16, CipherSuite._Encode, self.ciphersuites))
         o.extend(Encode.item_vec(Encode.u8, Compression._Encode, self.compressions))
         if len(self.extensions):
@@ -385,6 +386,48 @@ class ServerHelloDone(Struct):
     def read(f):
         return ServerHelloDone()
 
+class ClientKeyExchange(Struct):
+    def __init__(self, body = None):
+        Struct.__init__(self)
+        self.body = body if body else []
+    
+    def encode(self):
+        return self.body
+    
+    @staticmethod
+    def read(f):
+        c = ClientKeyExchange()
+        c.body = f.read()
+        return c
+
+class ServerKeyExchange(Struct):
+    def __init__(self, body = None):
+        Struct.__init__(self)
+        self.body = body if body else []
+    
+    def encode(self):
+        return self.body
+    
+    @staticmethod
+    def read(f):
+        c = ServerKeyExchange()
+        c.body = f.read()
+        return c
+
+class Finished(Struct):
+    def __init__(self, body = None):
+        Struct.__init__(self)
+        self.body = body if body else []
+    
+    def encode(self):
+        return self.body
+    
+    @staticmethod
+    def read(f):
+        c = Finished()
+        c.body = f.read()
+        return c
+
 class ASN1Cert(Struct):
     def __init__(self, data = None):
         Struct.__init__(self)
@@ -419,18 +462,32 @@ class Message(Struct):
         self.type = type
         self.version = version
         self.body = body
+        self.opaque = False
 
     @staticmethod
-    def read(f):
+    def prefix_has_full_frame(b):
+        lb = len(b)
+        if lb < 5:
+            return False
+        fl = Decode.u16(b[3:5])
+        return len(b) >= fl + 5
+
+    @staticmethod
+    def read(f, opaque = False):
         m = Message()
         m.type = ContentType.read(f)
         m.version = ProtocolVersion.read(f)
-        m.read_body(f)
+        m.read_body(f, opaque)
         return m
 
-    def read_body(self, f):
+    def read_body(self, f, opaque):
         ll = Read.u16(f)
         body_bytes = Read.must(f, ll)
+        self.opaque = opaque
+
+        if opaque:
+            self.body = body_bytes
+            return
 
         decoders = {
             ContentType.Alert: Alert.decode,

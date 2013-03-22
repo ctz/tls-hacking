@@ -90,9 +90,10 @@ class Struct:
         return bytes(self.encode())
 
     @classmethod
-    def decode(cls, b):
+    def decode(cls, b, *args, **kwargs):
         f = io.BytesIO(b)
-        return cls.read(f)
+        r = cls.read(f, *args, **kwargs)
+        return r
 
     def __repr__(self):
         return str(self)

