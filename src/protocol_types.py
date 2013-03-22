@@ -55,10 +55,12 @@ class ChangeCipherSpec(Struct):
     def encode(self):
         return Encode.u8(1)
 
-    def decode(self, b):
-        value = Decode.u8(b)
+    @staticmethod
+    def read(b):
+        value = Read.u8(b)
         if value != 1:
             raise ValueError('ChangeCipherSpec payload incorrect')
+        return ChangeCipherSpec()
 
 class AlertLevel(Enum8):
     Warning = 1
@@ -120,7 +122,7 @@ class ApplicationData(Struct):
     @staticmethod
     def read(f):
         a = ApplicationData()
-        self.data = f.readall()
+        a.data = f.read()
         return a
 
 class Handshake(Struct):
@@ -249,7 +251,6 @@ class ServerName(Struct):
     @staticmethod
     def hostname(h):
         return ServerName(ServerNameType.HostName, bytes(h, 'utf-8'))
-
     
     @staticmethod
     def read(f):
@@ -447,3 +448,4 @@ class Message(Struct):
                ProtocolVersion.encode(self.version) + \
                Encode.u16(len(body)) + \
                list(body)
+
