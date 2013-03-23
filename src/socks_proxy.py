@@ -16,21 +16,62 @@ def dump(why, bb):
     pass
 
 class socks_handler(socketserver.BaseRequestHandler):
-    def handle_socks_setup(self):
-        req = self.request.recv(9)
-        if len(req) != 9:
-            raise IOError('short socks4 request')
-        
-        ver, cmd, port, ip, nul = req[0], req[1], req[2:4], req[4:8], req[8]
-        assert ver == 0x04
-        assert cmd == 0x01
-        assert nul == 0x00
-        
-        self.backend_ip = '{0}.{1}.{2}.{3}'.format(*ip)
-        self.backend_port = port[0] << 8 | port[1]
+    def mustrecv(self, n, why = 'data'):
+        x = self.request.recv(n)
+        if len(x) != n:
+            raise IOError('short ' + why)
+        return x
+            
+    def connect_backend(self, ip_be, port_be):
+        self.backend_ip = '{0}.{1}.{2}.{3}'.format(*ip_be)
+        self.backend_port = port_be[0] << 8 | port_be[1]
         
         self.backend = socket.create_connection((self.backend_ip, self.backend_port))
+
+    def handle_socks_setup(self):
+        ver = self.mustrecv(1, 'socks version')[0]
+                
+        if ver == 0x04:
+            self.handle_socks4_setup()
+        elif ver == 0x05:
+            self.handle_socks5_setup()
+            
+    def handle_socks4_setup(self):
+        assert self.mustrecv(1)[0] == 0x01 # command
+        port = self.mustrecv(2)
+        ip = self.mustrecv(4)
+
+        while True:
+            b = self.mustrecv(1)[0]
+            if b == 0x00:
+                break
+        
+        self.connect_backend(ip, port)
         self.request.sendall(bytes([0, 0x5a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
+    
+    def handle_socks5_setup(self):
+        NO_AUTH = 0
+    
+        # auth methods
+        nmethods = self.mustrecv(1)
+        methods = []
+        for _ in range(nmethods[0]):
+            meth = self.mustrecv(1)
+            methods.append(meth[0])
+        assert NO_AUTH in methods
+        self.request.sendall(bytes([0x05, NO_AUTH]))
+        
+        # request
+        assert self.mustrecv(1)[0] == 0x05 # socks5
+        assert self.mustrecv(1)[0] == 0x01 # tcp client connection
+        assert self.mustrecv(1)[0] == 0x00 # must be zero
+        assert self.mustrecv(1)[0] == 0x01 # ipv4 addr
+        ip = self.mustrecv(4)
+        port = self.mustrecv(2)
+        self.connect_backend(ip, port)
+        
+        # response
+        self.request.sendall(bytes([0x05, 0x00, 0x00, 0x01] + list(ip) + list(port)))
 
     def tls_incoming(self, m):
         #print('incoming from remote', m)
@@ -51,6 +92,9 @@ class socks_handler(socketserver.BaseRequestHandler):
             
         if m.type == ContentType.Handshake and m.version >= ProtocolVersion.TLSv1_0 and ENABLE_DOWNGRADE:
             print('sabotaging >= TLS1.0')
+            print('original ciphersuites were:')
+            for cs in m.body.body.ciphersuites:
+                print(' ', CipherSuite.tostring(cs))
             self.request.sendall(bytes(build_fatal_alert(AlertDescription.HandshakeFailure)))
             return
         
@@ -122,7 +166,7 @@ class RebindTCP(socketserver.ThreadingMixIn, socketserver.TCPServer):
         socketserver.TCPServer.__init__(self, *args, **kwargs)
 
 if __name__ == '__main__':
-    HOST, PORT = 'localhost', 3355
+    HOST, PORT = '0.0.0.0', 3355
 
     server = RebindTCP((HOST, PORT), socks_handler)
     print('listening on', HOST, PORT)
