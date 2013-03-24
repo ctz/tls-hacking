@@ -5,23 +5,32 @@ import io
 from protocol_types import *
 from ciphersuites import CipherSuite
 
-def exploratory_clienthello(hostname, suites):
+def exploratory_clienthello(hostname, suites, version):
     extensions = [
         Extension(ExtensionType.ServerName,
                   ServerNameExtensionBody([ServerName.hostname(hostname)])),
         Extension(ExtensionType.EllipticCurves,
-                  EllipticCurvesExtensionBody.all_named_curves()),
+                  EllipticCurvesExtensionBody.all_common_prime_curves()),
+        Extension(ExtensionType.ECPointFormats,
+                  [1, 0]),
+        Extension(ExtensionType.SessionTicket,
+                  []),
         Extension(ExtensionType.RenegotiationInfo, [0])
     ]
-    return ClientHello(ciphersuites = suites,
-                       compressions = Compression.all(),
-                       extensions = extensions)
 
-def exploratory_handshake(hostname, suites):
+    if version < ProtocolVersion.TLSv1_0:
+        extensions = []
+    
+    return ClientHello(ciphersuites = suites,
+                       compressions = Compression.none(),
+                       extensions = extensions,
+                       version = version)
+
+def exploratory_handshake(hostname, suites, version):
     return Message(ContentType.Handshake,
-                   ProtocolVersion.TLSv1_0,
+                   version,
                    Handshake(HandshakeType.ClientHello,
-                             exploratory_clienthello(hostname, suites)))
+                             exploratory_clienthello(hostname, suites, version)))
 
 def build_fatal_alert(why):
     return Message(ContentType.Alert,
@@ -34,15 +43,6 @@ class protocol_handler:
 
     def process_message(m):
         self.co.send(m)
-
-def client_handshake(hello):
-    print('client_handshake send:', hello)
-    m = (yield hello)
-    assert m is None
-
-    m = (yield None)
-    print('client_handshake recv:', m)
-    print('client_handshake fin.')
 
 def wait_for_read(f):
     r, w, x = select.select([f.socket], [], [], 1)
@@ -66,13 +66,11 @@ def run_protocol(f, protocol):
             wait_for_read(f)
             recvd = Message.read(f)
 
-def test(hostname, port):
-    with socket.create_connection((hostname, port), 10) as s:
-        f = s.makefile(mode = 'rwb')
-        f.socket = s # stash for win32 :(
-        hello = exploratory_handshake(hostname, CipherSuite.chrome_default_set())
-        protocol = client_handshake(hello)
-        run_protocol(f, protocol)
+def connect(hostname, port):
+    s = socket.create_connection((hostname, port), 5)
+    f = s.makefile(mode = 'rwb')
+    f.socket = s
+    return f
 
 if __name__ == '__main__':
     v = ContentType.Handshake
