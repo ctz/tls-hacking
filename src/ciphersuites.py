@@ -458,7 +458,6 @@ class CipherSuite(Enum16):
             CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
             CipherSuite.TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA,
             CipherSuite.TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA,
-            CipherSuite.TLS_DHE_DSS_WITH_RC4_128_SHA,
             CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA,
             CipherSuite.TLS_DHE_DSS_WITH_AES_128_CBC_SHA,
             CipherSuite.TLS_ECDH_RSA_WITH_RC4_128_SHA,
