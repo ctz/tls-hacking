@@ -4,6 +4,12 @@ import io
 
 from base import Enum8, Enum16, Decode, Encode, Read, Struct
 
+def bytes_or_json(v):
+    if hasattr(v, 'to_json'):
+        return v.to_json()
+    else:
+        return ['hex', ''.join('{0:02x}'.format(x) for x in bytes(v))]
+
 class ProtocolVersion(Enum16):
     SSLv2 = 0x0200
     SSLv3 = 0x0300
@@ -25,6 +31,10 @@ class Compression(Enum8):
     @staticmethod
     def all():
         return [ Compression.Deflate, Compression.LSZ, Compression.Null ]
+    
+    @staticmethod
+    def none():
+        return [ Compression.Null ]
 
 class ContentType(Enum8):
     ChangeCipherSpec = 20
@@ -54,6 +64,9 @@ class ChangeCipherSpec(Struct):
 
     def encode(self):
         return Encode.u8(1)
+
+    def to_json(self):
+        return dict(value = 1)
 
     @staticmethod
     def read(b):
@@ -93,6 +106,7 @@ class AlertDescription(Enum8):
     UserCanceled = 90
     NoRenegotiaion = 100
     UnsupportedExtension = 110
+    UnrecognisedName = 112
     MAX = 255
 
 class Alert(Struct):
@@ -103,6 +117,10 @@ class Alert(Struct):
 
     def encode(self):
         return AlertLevel.encode(self.level) + AlertDescription.encode(self.desc)
+
+    def to_json(self):
+        return dict(level = AlertLevel.to_json(self.level),
+                    desc = AlertDescription.to_json(self.desc))
 
     @staticmethod
     def read(f):
@@ -119,6 +137,9 @@ class ApplicationData(Struct):
     def encode(self):
         return bytes(self.data)
 
+    def to_json(self):
+        return dict(data = self.data)
+
     @staticmethod
     def read(f):
         return ApplicationData(data = f.read())
@@ -134,6 +155,10 @@ class Handshake(Struct):
         return HandshakeType.encode(self.type) + \
                Encode.u24(len(body)) + \
                list(body)
+
+    def to_json(self):
+        return dict(type = HandshakeType.to_json(self.type),
+                    body = bytes_or_json(self.body))
 
     def read_body(self, f):
         ll = Read.u24(f)
@@ -171,6 +196,10 @@ class Random(Struct):
 
     def encode(self):
         return Encode.u32(self.time) + list(self.nonce)
+
+    def to_json(self):
+        return dict(time = self.time,
+                    nonce = bytes_or_json(self.nonce))
 
     @staticmethod
     def read(f):
@@ -216,6 +245,10 @@ class Extension(Struct):
                Encode.u16(len(body)) + \
                list(body)
 
+    def to_json(self):
+        return dict(type = ExtensionType.to_json(self.type),
+                    body = bytes_or_json(self.data))
+
     @staticmethod
     def read(f):
         e = Extension()
@@ -230,6 +263,9 @@ class ServerNameExtensionBody(Struct):
 
     def encode(self):
         return Encode.vec(Encode.u16, self.names)
+
+    def to_json(self):
+        return [x.to_json() for x in self.names]
 
     @staticmethod
     def read(f):
@@ -248,6 +284,10 @@ class ServerName(Struct):
     def encode(self):
         return ServerNameType.encode(self.type) + \
                Encode.item_vec(Encode.u16, Encode.u8, self.body)
+
+    def to_json(self):
+        return dict(type = ServerNameType.to_json(self.type),
+                    body = bytes_or_json(self.body))
     
     @staticmethod
     def hostname(h):
@@ -299,6 +339,9 @@ class EllipticCurvesExtensionBody(Struct):
     def encode(self):
         return Encode.item_vec(Encode.u16, NamedCurve._Encode, self.curves)
 
+    def to_json(self):
+        return [NamedCurve.to_json(x) for x in self.curves]
+
     @staticmethod
     def read(f):
         return EllipticCurvesExtensionBody(Read.vec(f, Read.u16, NamedCurve.read))
@@ -307,6 +350,13 @@ class EllipticCurvesExtensionBody(Struct):
     def all_named_curves():
         return EllipticCurvesExtensionBody(list(range(NamedCurve.sect163k1,
                                                       NamedCurve.secp521r1 + 1)))
+
+    @staticmethod
+    def all_common_prime_curves():
+        return EllipticCurvesExtensionBody([NamedCurve.secp256r1,
+                                            NamedCurve.secp384r1,
+                                            NamedCurve.secp521r1])
+    
 
 
 class ClientHello(Struct):
@@ -330,6 +380,14 @@ class ClientHello(Struct):
         if len(self.extensions):
             o.extend(Encode.vec(Encode.u16, self.extensions))
         return o
+
+    def to_json(self):
+        return dict(version = ProtocolVersion.to_json(self.version),
+                    random = self.random.to_json(),
+                    session_id = bytes_or_json(self.session_id),
+                    ciphersuites = [CipherSuite.to_json(x) for x in self.ciphersuites],
+                    compressions = [Compression.to_json(x) for x in self.compressions],
+                    extensions = [x.to_json() for x in self.extensions])
 
     @staticmethod
     def read(f):
@@ -364,6 +422,14 @@ class ServerHello(Struct):
                Compression.encode(self.compression) + \
                (Encode.vec(Encode.u16, self.extensions) if self.extensions else [])
 
+    def to_json(self):
+        return dict(version = ProtocolVersion.to_json(self.version),
+                    random = self.random.to_json(),
+                    session_id = bytes_or_json(self.session_id),
+                    ciphersuite = CipherSuite.to_json(self.ciphersuite),
+                    compression = Compression.to_json(self.compression),
+                    extensions = [x.to_json() for x in self.extensions])
+
     @staticmethod
     def read(f):
         s = ServerHello()
@@ -380,8 +446,8 @@ class ServerHello(Struct):
         return s
 
 class ServerHelloDone(Struct):
-    def encode(self):
-        return []
+    def encode(self): return []
+    def to_json(): return {}
     @staticmethod
     def read(f):
         return ServerHelloDone()
@@ -393,6 +459,9 @@ class ClientKeyExchange(Struct):
     
     def encode(self):
         return self.body
+
+    def to_json(self):
+        return bytes_or_json(self.body)
     
     @staticmethod
     def read(f):
@@ -407,6 +476,9 @@ class ServerKeyExchange(Struct):
     
     def encode(self):
         return self.body
+
+    def to_json(self):
+        return bytes_or_json(self.body)
     
     @staticmethod
     def read(f):
@@ -421,6 +493,9 @@ class Finished(Struct):
     
     def encode(self):
         return self.body
+
+    def to_json(self):
+        return bytes_or_json(self.body)
     
     @staticmethod
     def read(f):
@@ -436,6 +511,9 @@ class ASN1Cert(Struct):
     def encode(self):
         return Encode.item_vec(Encode.u24, Encode.u8, self.data)
 
+    def to_json(self):
+        return bytes_or_json(self.data)
+
     @staticmethod
     def read(f):
         ac = ASN1Cert()
@@ -449,6 +527,9 @@ class Certificate(Struct):
 
     def encode(self):
         return Encode.item_vec(Encode.u24, ASN1Cert.encode, self.certs)
+
+    def to_json(self):
+        return [x.to_json() for x in self.certs]
 
     @staticmethod
     def read(f):
@@ -505,4 +586,10 @@ class Message(Struct):
                ProtocolVersion.encode(self.version) + \
                Encode.u16(len(body)) + \
                list(body)
+
+    def to_json(self):
+        return dict(type = ContentType.to_json(self.type),
+                    version = ProtocolVersion.to_json(self.version),
+                    body = bytes_or_json(self.body))
+                    
 

@@ -142,6 +142,10 @@ class Enum:
         return '<{0} {1} ({2:x})>'.format(cls.__name__, name, value)
 
     @classmethod
+    def to_json(cls, value):
+        return [value, cls.__name__, cls.lookup(value)]
+
+    @classmethod
     def encode(cls, value):
         return cls._Encode(value)
 
