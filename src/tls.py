@@ -1,6 +1,8 @@
 import socket
 import select
 import io
+import hashlib
+import hmac
 
 from protocol_types import *
 from ciphersuites import CipherSuite
@@ -44,33 +46,72 @@ class protocol_handler:
     def process_message(m):
         self.co.send(m)
 
-def wait_for_read(f):
-    r, w, x = select.select([f.socket], [], [], 1)
+def wait_for_read(sock):
+    r, w, x = select.select([sock], [], [], 1)
     if len(r):
         return
     else:
         raise IOError('timeout')
 
-def run_protocol(f, protocol):
-    recvd = None
+def bhex(b):
+    return ''.join('%02x' % x for x in b)
+
+def decompose(msg):
+    f = io.BytesIO(msg)
+    o = []
+    while f.tell() != len(msg):
+        m = Message.read(f, opaque = True)
+        o.append(m)
+    return o
+
+def run_protocol(s, protocol):
+    MAX_BUF = 0xffff * 16
+    
+    recvd = []
     while True:
         try:
-            to_send = protocol.send(recvd)
+            to_send = protocol.send(recvd.pop(0) if recvd else None)
         except StopIteration:
             break
-        recvd = None
         if to_send is not None:
-            f.write(bytes(to_send))
-            f.flush()
-        else:
-            wait_for_read(f)
-            recvd = Message.read(f)
+            s.sendall(bytes(to_send))
+        elif not recvd:
+            wait_for_read(s)
+            msg = s.recv(MAX_BUF)
+            recvd.extend(decompose(msg))
 
 def connect(hostname, port):
     s = socket.create_connection((hostname, port), 5)
-    f = s.makefile(mode = 'rwb')
-    f.socket = s
-    return f
+    return s
+
+def TLSv1_0_PRF(outlen, secret, label, seed):
+    label = bytes(label, 'ASCII')
+    secret = bytes(secret)
+    seed = bytes(seed)
+    ls = len(secret)
+    ls1 = ls2 = (ls + 1) // 2
+
+    def xor(xx, yy):
+        o = []
+        for i in range(len(xx)):
+            o.append(xx[i] ^ yy[i])
+        return bytes(o)
+
+    def p_hash(hashfn, outlen, k, pt):
+        o = []
+        a_im = pt
+        for i in range(0, outlen, hashfn().digest_size):
+            a_i = hmac.new(k, a_im, hashfn).digest()
+            output = hmac.new(k, a_i + pt, hashfn).digest()
+            o.append(output)
+            a_im = a_i
+        return bytes(b''.join(o))[:outlen]
+
+    p_md5 = lambda outlen, secret, label: p_hash(hashlib.md5, outlen, secret, label)
+    p_sha1 = lambda outlen, secret, label: p_hash(hashlib.sha1, outlen, secret, label)
+
+    return xor(p_md5(outlen, secret[:ls1], label + seed),
+               p_sha1(outlen, secret[-ls2:], label + seed))
 
 if __name__ == '__main__':
     v = ContentType.Handshake
@@ -83,15 +124,14 @@ if __name__ == '__main__':
         f.seek(0)
         return t.read(f)
 
-    hs = exploratory_handshake('google.com', CipherSuite.preferred_set())
+    hs = exploratory_handshake('google.com', CipherSuite.preferred_set(), ProtocolVersion.TLSv1_0)
     newhs = pairwise(Message, hs)
     new2hs = pairwise(Message, newhs)
     print(hs)
 
-    assert bytes(hs) == bytes(newhs)
-    assert bytes(newhs) == bytes(new2hs)
-    #test('www.amazon.com', 443)
-    test('www.google.com', 443)
-    #test('www.play.com', 443)
-    #test('www.twitter.com', 443)
-    #test('www.github.com', 443)
+    secret = bytes.fromhex('ab' * 48)
+    label = "PRF Testvector"
+    seed = bytes.fromhex('cd' * 64)
+    master_secret = TLSv1_0_PRF(104, secret, label, seed)
+    assert len(master_secret) == 104
+    assert master_secret == bytes.fromhex('d3d4d1e349b5d515044666d51de32bab258cb521b6b053463e354832fd976754443bcf9a296519bc289abcbc1187e4ebd31e602353776c408aafb74cbc85eff69255f9788faa184cbb957a9819d84a5d7eb006eb459d3ae8de9810454b8b2d8f1afbc655a8c9a013')

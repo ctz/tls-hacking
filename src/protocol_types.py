@@ -500,7 +500,7 @@ class Finished(Struct):
     @staticmethod
     def read(f):
         c = Finished()
-        c.body = f.read()
+        c.body = bytes([Read.u8(f) for _ in range(12)])
         return c
 
 class ASN1Cert(Struct):
@@ -523,7 +523,7 @@ class ASN1Cert(Struct):
 class Certificate(Struct):
     def __init__(self, certs = None):
         Struct.__init__(self)
-        self.certs if certs else []
+        self.certs = certs if certs else []
 
     def encode(self):
         return Encode.item_vec(Encode.u24, ASN1Cert.encode, self.certs)
@@ -561,15 +561,7 @@ class Message(Struct):
         m.read_body(f, opaque)
         return m
 
-    def read_body(self, f, opaque):
-        ll = Read.u16(f)
-        body_bytes = Read.must(f, ll)
-        self.opaque = opaque
-
-        if opaque:
-            self.body = body_bytes
-            return
-
+    def interpret_body(self):
         decoders = {
             ContentType.Alert: Alert.decode,
             ContentType.ApplicationData: ApplicationData.decode,
@@ -578,14 +570,24 @@ class Message(Struct):
         }
 
         assert decoders.keys() == ContentType.table().keys()
-        self.body = decoders[self.type](body_bytes)
+        self.body = decoders[self.type](self.body)
+
+    def read_body(self, f, opaque):
+        ll = Read.u16(f)
+        self.body = Read.must(f, ll)
+        self.opaque = opaque
+
+        if not self.opaque:
+            self.interpret_body()
 
     def encode(self):
-        body = bytes(self.body)
+        return bytes(self.header()) + bytes(self.body)
+
+    def header(self):
+        # the stuff which gets put into the mac (minus sequence number and body)
         return ContentType.encode(self.type) + \
                ProtocolVersion.encode(self.version) + \
-               Encode.u16(len(body)) + \
-               list(body)
+               Encode.u16(len(bytes(self.body)))
 
     def to_json(self):
         return dict(type = ContentType.to_json(self.type),

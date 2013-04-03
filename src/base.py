@@ -72,6 +72,11 @@ class Encode:
         return [ v >> 24 & 0xff, v >> 16 & 0xff, v >> 8 & 0xff, v & 0xff ]
 
     @staticmethod
+    def u64(v):
+        assert v >= 0 and v <= 0xffffffffffffffff
+        return Encode.u32(v >> 32) + Encode.u32(v & 0xffffffff)
+
+    @staticmethod
     def item_vec(lenf, itemf, items):
         body = []
         for x in items:
