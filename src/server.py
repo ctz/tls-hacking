@@ -157,12 +157,9 @@ def server_handshake(cert, key):
     recv_num += 1
 
     def hash_handshakes(msgs, h):
-        print(h)
         hh = h()
         for m in msgs:
-            print(type(m))
             assert isinstance(m, Handshake)
-            print(m, bhex(bytes(m)))
             hh.update(bytes(m))
         return hh.digest()
 
@@ -174,12 +171,45 @@ def server_handshake(cert, key):
 
     handshake_messages.append(client_finished.body)
     
-    return
-
     change_cipher_spec = Message(type = ContentType.ChangeCipherSpec,
                                  version = version,
                                  body = ChangeCipherSpec())
     yield change_cipher_spec
+
+    our_hash = TLSv1_0_PRF(12, master_secret,
+                           "server finished",
+                           hash_handshakes(handshake_messages, hashlib.md5) +
+                           hash_handshakes(handshake_messages, hashlib.sha1))
+    
+    server_finished = Message(type = ContentType.Handshake,
+                              version = version,
+                              body = Handshake(type = HandshakeType.Finished,
+                                               body = Finished(body = our_hash)
+                                               )
+                              )
+
+    def sign(key, seq, msg):
+        body = bytes(msg.body)
+        authd = bytes(Encode.u64(seq)) + bytes(msg.header()) + body
+        sig = hmac.new(key, authd, hashlib.sha1).digest()
+        msg.body = body + sig
+
+    sign(server_write_mac, send_num, server_finished)
+    send_num += 1
+    server_finished.body = rc4_server_write.encrypt(server_finished.body)
+    yield server_finished
+
+    while True:
+        https_request = (yield None)
+        print(https_request)
+        
+        if not check_enum(ContentType, https_request.type, ContentType.ApplicationData):
+            return
+
+        https_request.body = rc4_client_write.decrypt(https_request.body)
+        print(https_request)
+        verify(client_write_mac, recv_num, https_request)
+        recv_num += 1
     
     return
 
