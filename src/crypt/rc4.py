@@ -5,6 +5,8 @@ class rc4:
         for i in range(256):
             j = (j + self.S[i] + key[i % len(key)]) & 0xff
             self.swap(i, j)
+        self.i = 0
+        self.j = 0
 
     def swap(self, i, j):
             self.S[i], self.S[j] = self.S[j], self.S[i]
@@ -12,14 +14,11 @@ class rc4:
     def encrypt(self, pt):
         ct = []
 
-        i = 0
-        j = 0
-
         for p in pt:
-            i = (i + 1) & 0xff
-            j = (j + self.S[i]) & 0xff
-            self.swap(i, j)
-            k = self.S[(self.S[i] + self.S[j]) & 0xff]
+            self.i = (self.i + 1) & 0xff
+            self.j = (self.j + self.S[self.i]) & 0xff
+            self.swap(self.i, self.j)
+            k = self.S[(self.S[self.i] + self.S[self.j]) & 0xff]
             ct.append(p ^ k)
 
         return bytes(ct)
