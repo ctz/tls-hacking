@@ -571,6 +571,7 @@ class Message(Struct):
 
         assert decoders.keys() == ContentType.table().keys()
         self.body = decoders[self.type](self.body)
+        self.opaque = False
 
     def read_body(self, f, opaque):
         ll = Read.u16(f)

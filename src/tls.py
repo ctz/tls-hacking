@@ -55,30 +55,43 @@ def wait_for_read(sock):
 
 def bhex(b):
     return ''.join('%02x' % x for x in b)
-
-def decompose(msg):
-    f = io.BytesIO(msg)
+    
+def decompose(bytesin):
+    # take messages from the front of bytesin, returning
+    # the messages read and the unused remainder of bytesin
+    f = io.BytesIO(bytesin)
     o = []
-    while f.tell() != len(msg):
-        m = Message.read(f, opaque = True)
-        o.append(m)
-    return o
+    while True:
+        startpos = f.tell()
+        if startpos == len(bytesin):
+            break
+        try:
+            m = Message.read(f, opaque = True)
+            o.append(m)
+        except Exception as e:
+            #print(e)
+            #print('decomposed-partial', o, 'left', bytesin[startpos:])
+            return o, bytesin[startpos:]
+    #print('decomposed-full', o, 'nothing-left')
+    return o, bytes()
 
 def run_protocol(s, protocol):
     MAX_BUF = 0xffff * 16
     
-    recvd = []
+    buf = bytes()
+    msgs = []
     while True:
         try:
-            to_send = protocol.send(recvd.pop(0) if recvd else None)
+            to_send = protocol.send(msgs.pop(0) if msgs else None)
         except StopIteration:
             break
         if to_send is not None:
             s.sendall(bytes(to_send))
-        elif not recvd:
+        elif not msgs:
             wait_for_read(s)
-            msg = s.recv(MAX_BUF)
-            recvd.extend(decompose(msg))
+            buf = buf + s.recv(MAX_BUF)
+            recvd, buf = decompose(buf)
+            msgs.extend(recvd)
 
 def connect(hostname, port):
     s = socket.create_connection((hostname, port), 5)
