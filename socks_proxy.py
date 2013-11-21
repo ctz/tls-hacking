@@ -6,8 +6,8 @@ import io
 import sys
 import tempfile
 
-from tls import Message, build_fatal_alert, AlertDescription
-from tls import ContentType, HandshakeType, CipherSuite, ProtocolVersion
+from tls.tls import Message, build_fatal_alert, AlertDescription
+from tls.protocol_types import ContentType, HandshakeType, CipherSuite, ProtocolVersion
 
 MAX = 8192
 ENABLE_DOWNGRADE = True

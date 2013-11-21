@@ -1,4 +1,4 @@
-from protocol_types import *
+from tls.protocol_types import *
 
 import sys
 import io

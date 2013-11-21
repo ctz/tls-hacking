@@ -2,7 +2,7 @@ import time
 import os
 import io
 
-from base import Enum8, Enum16, Decode, Encode, Read, Struct
+from .base import Enum8, Enum16, Decode, Encode, Read, Struct
 
 def bytes_or_json(v):
     if hasattr(v, 'to_json'):
@@ -20,7 +20,7 @@ class ProtocolVersion(Enum16):
 
     _Highest = TLSv1_2
 
-from ciphersuites import CipherSuite
+from .ciphersuites import CipherSuite
 
 class Compression(Enum8):
     Null = 0

@@ -1,4 +1,5 @@
-from tls import *
+from tls.tls import *
+import socket
 import json
 import sys
 
@@ -13,21 +14,24 @@ class output:
                     hello = self.hello.to_json(),
                     recvd = [x.to_json() for x in self.recvd])
 
-def client_handshake(res, hello):
-    m = (yield hello)
-    assert m is None
-    res.hello = hello
-
-    while True:
-        m = (yield None)
-        if not m:
-            continue
+class client_handshake:
+    def __init__(self, result, hellomsg):
+        self.result = result
+        self.outgoing = [hellomsg]
+        
+    def flush(self):
+        out = self.outgoing
+        self.outgoing = []
+        return out
+        
+    def incoming(self, m):
         m.interpret_body()
-        res.recvd.append(m)
+        self.result.recvd.append(m)
     
         if m.type == ContentType.Handshake and m.body.type == HandshakeType.ServerHello:
-            res.ciphersuite = m.body.body.ciphersuite
-            break
+            self.result.ciphersuite = m.body.body.ciphersuite
+            self.result.hello = m
+            self.outgoing = [ None ]
 
 def probe(hostname, port):
     # tls1.0 first

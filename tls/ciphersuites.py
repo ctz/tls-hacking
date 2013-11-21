@@ -1,4 +1,4 @@
-from base import Enum16
+from .base import Enum16
 
 class CipherSuite(Enum16):
     TLS_NULL_WITH_NULL_NULL = 0x0000

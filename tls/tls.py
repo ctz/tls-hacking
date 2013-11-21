@@ -4,8 +4,10 @@ import io
 import hashlib
 import hmac
 
-from protocol_types import *
-from ciphersuites import CipherSuite
+from logging import debug
+
+from .protocol_types import *
+from .ciphersuites import CipherSuite
 
 def exploratory_clienthello(hostname, suites, version):
     extensions = [
@@ -47,7 +49,7 @@ class protocol_handler:
         self.co.send(m)
 
 def wait_for_read(sock):
-    r, w, x = select.select([sock], [], [], 1)
+    r, w, x = select.select([sock], [], [])
     if len(r):
         return
     else:
@@ -69,10 +71,10 @@ def decompose(bytesin):
             m = Message.read(f, opaque = True)
             o.append(m)
         except Exception as e:
-            #print(e)
-            #print('decomposed-partial', o, 'left', bytesin[startpos:])
+            debug(e)
+            debug('decomposed-partial %r left %r', o, bytesin[startpos:])
             return o, bytesin[startpos:]
-    #print('decomposed-full', o, 'nothing-left')
+    debug('decomposed-full %r nothing-left', o)
     return o, bytes()
 
 def run_protocol(s, protocol):
@@ -81,16 +83,23 @@ def run_protocol(s, protocol):
     buf = bytes()
     msgs = []
     while True:
-        try:
-            to_send = protocol.send(msgs.pop(0) if msgs else None)
-        except StopIteration:
-            break
-        if to_send is not None:
-            s.sendall(bytes(to_send))
-        elif not msgs:
+        for outgoing in protocol.flush():
+            if outgoing is None:
+                return
+            s.sendall(bytes(outgoing))
+
+        if msgs:
+            incoming = msgs.pop(0)
+            protocol.incoming(incoming)
+        else:
             wait_for_read(s)
-            buf = buf + s.recv(MAX_BUF)
+            incoming = s.recv(MAX_BUF)
+            if len(incoming) == 0:
+                # EOF
+                return
+            buf += incoming
             recvd, buf = decompose(buf)
+            debug('recvd %r', recvd)
             msgs.extend(recvd)
 
 def connect(hostname, port):
