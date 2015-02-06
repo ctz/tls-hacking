@@ -30,11 +30,29 @@ class Read:
         if len(x) != n:
             raise IOError('short read from {0}: wanted {1} bytes, got {2}'.format(f, n, len(x)))
         return x
+
+    @staticmethod
+    def partial(f, n):
+        x = f.read(n)
+        if x is None:
+            raise IOError('{0} bytes not available from non-blocking file {1}'.format(n, f))
+
+        # return value-bytes, remain-int
+        return x, n - len(x)
     
     u8 = lambda f: Decode.u8(Read.must(f, 1))
     u16 = lambda f: Decode.u16(Read.must(f, 2))
     u24 = lambda f: Decode.u24(Read.must(f, 3))
     u32 = lambda f: Decode.u32(Read.must(f, 4))
+
+    @staticmethod
+    def maybe(child):
+        def reader(f):
+            try:
+                return child(f)
+            except:
+                return None
+        return reader
 
     @staticmethod
     def vec(f, lenf, itemf):
@@ -46,7 +64,9 @@ class Read:
 
         bodyf = io.BytesIO(body_bytes)
         while bodyf.tell() != ll:
-            o.append(itemf(bodyf))
+            item = itemf(bodyf)
+            if item is not None:
+                o.append(item)
         
         return o
 
@@ -113,10 +133,12 @@ class Struct:
 
 class Enum:
     @classmethod
-    def read(cls, f):
+    def read(cls, f, lax_enum = False):
         v = Read.must(f, cls._ByteSize)
         v = cls._Decode(v)
-        cls.lookup(v)
+
+        if lax_enum is False:
+            cls.lookup(v)
         return v
 
     @classmethod
@@ -148,7 +170,10 @@ class Enum:
 
     @classmethod
     def to_json(cls, value):
-        return [value, cls.__name__, cls.lookup(value)]
+        try:
+            return [value, cls.__name__, cls.lookup(value)]
+        except ValueError:
+            return value
 
     @classmethod
     def encode(cls, value):

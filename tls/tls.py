@@ -63,6 +63,7 @@ def decompose(bytesin):
     # the messages read and the unused remainder of bytesin
     f = io.BytesIO(bytesin)
     o = []
+
     while True:
         startpos = f.tell()
         if startpos == len(bytesin):
@@ -82,10 +83,12 @@ def run_protocol(s, protocol):
     
     buf = bytes()
     msgs = []
+
     while True:
         for outgoing in protocol.flush():
             if outgoing is None:
                 return
+            debug('outgoing message is %d bytes', len(bytes(outgoing)))
             s.sendall(bytes(outgoing))
 
         if msgs:

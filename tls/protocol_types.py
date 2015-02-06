@@ -2,6 +2,8 @@ import time
 import os
 import io
 
+from logging import debug
+
 from .base import Enum8, Enum16, Decode, Encode, Read, Struct
 
 def bytes_or_json(v):
@@ -41,6 +43,7 @@ class ContentType(Enum8):
     Alert = 21
     Handshake = 22
     ApplicationData = 23
+    Heartbeat = 24
     MAX = 0xff
 
 class HandshakeType(Enum8):
@@ -104,7 +107,7 @@ class AlertDescription(Enum8):
     InsufficientSecurity = 71
     InternalError = 80
     UserCanceled = 90
-    NoRenegotiaion = 100
+    NoRenegotiation = 100
     UnsupportedExtension = 110
     UnrecognisedName = 112
     MAX = 255
@@ -143,6 +146,44 @@ class ApplicationData(Struct):
     @staticmethod
     def read(f):
         return ApplicationData(data = f.read())
+
+class HeartbeatMessageType(Enum8):
+    Request = 1
+    Response = 2
+    MAX = 255
+
+class Heartbeat(Struct):
+    def __init__(self, type = None, payload = None):
+        Struct.__init__(self)
+        self.type = type
+        self.payload = payload
+        self.bytes_remain = 0
+
+    def append_fragment(self, other):
+        assert other.type == ContentType.Heartbeat
+        extra, self.bytes_remain = Read.partial(io.BytesIO(other.body), self.bytes_remain)
+        self.payload += extra
+
+    def is_fully_received(self):
+        return self.bytes_remain == 0
+
+    def encode(self):
+        return HeartbeatMessageType.encode(self.type) + \
+               Encode.u16(len(self.payload)) + \
+               list(self.payload)
+
+    def to_json(self):
+        return dict(type = HeartbeatMessageType.to_json(self.type),
+                    payload = bytes_or_json(self.payload))
+    
+    @staticmethod
+    def read(f):
+        h = Heartbeat()
+        h.type = HeartbeatMessageType.read(f)
+        ll = Read.u16(f)
+        print('heartbeat len is %d' % ll)
+        h.payload, h.bytes_remain = Read.partial(f, ll)
+        return h
 
 class Handshake(Struct):
     def __init__(self, type, body):
@@ -226,6 +267,7 @@ class ExtensionType(Enum16):
     SignatureAlgorithms = 13
     UseSRTP = 14
     Heartbeat = 15
+    Padding = 21 # http://tools.ietf.org/html/draft-agl-tls-padding-03
     SessionTicket = 35
     NextProtocolNegotiation = 0x3374
     ChannelId = 0x754f
@@ -252,7 +294,7 @@ class Extension(Struct):
     @staticmethod
     def read(f):
         e = Extension()
-        e.type = ExtensionType.read(f)
+        e.type = ExtensionType.read(f, lax_enum = True)
         e.data = Read.vec(f, Read.u16, Read.u8)
         return e
 
@@ -395,7 +437,7 @@ class ClientHello(Struct):
         c.version = ProtocolVersion.read(f)
         c.random = Random.read(f)
         c.session_id = Read.vec(f, Read.u8, Read.u8)
-        c.ciphersuites = Read.vec(f, Read.u16, CipherSuite.read)
+        c.ciphersuites = Read.vec(f, Read.u16, lambda f: CipherSuite.read(f, lax_enum = True))
         c.compressions = Read.vec(f, Read.u8, Compression.read)
 
         left = f.read()
@@ -566,7 +608,8 @@ class Message(Struct):
             ContentType.Alert: Alert.decode,
             ContentType.ApplicationData: ApplicationData.decode,
             ContentType.ChangeCipherSpec: ChangeCipherSpec.decode,
-            ContentType.Handshake: Handshake.decode
+            ContentType.Handshake: Handshake.decode,
+            ContentType.Heartbeat: Heartbeat.decode
         }
 
         assert decoders.keys() == ContentType.table().keys()
