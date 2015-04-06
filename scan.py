@@ -11,7 +11,7 @@ class output:
 
     def to_json(self):
         return dict(ciphersuite = self.ciphersuite,
-                    hello = self.hello.to_json(),
+                    hello = self.hello.to_json() if self.hello else None,
                     recvd = [x.to_json() for x in self.recvd])
 
 class client_handshake:
