@@ -6,11 +6,13 @@ a file.
 
 import sys
 import socketserver
+import socket
 import tls.protocol_types as TLS
 
 assert len(sys.argv) == 2, 'usage: script.py <cert.der>'
 cert = open(sys.argv[-1], 'rb').read()
 version = TLS.ProtocolVersion.TLSv1_0
+HOST, PORT = '', 4433
 
 def trivial_server_hello(client_hello):
     compression = TLS.Compression.Null
@@ -43,7 +45,6 @@ def broken_server_cert():
 class handler(socketserver.StreamRequestHandler):
     def handle(self):
         m = TLS.Message.read(self.rfile)
-        print(m.to_json())
         assert m.type == TLS.ContentType.Handshake
         assert m.body.type == TLS.HandshakeType.ClientHello
 
@@ -55,9 +56,10 @@ class handler(socketserver.StreamRequestHandler):
         self.wfile.write(bytes(cert))
         self.rfile.read()
 
-if __name__ == '__main__':
-    HOST, PORT = 'localhost', 9999
+class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    address_family = socket.AF_INET6
 
-    server = socketserver.TCPServer((HOST, PORT), handler)
+if __name__ == '__main__':
+    server = ThreadedTCPServer((HOST, PORT), handler)
     print('listening on', HOST, PORT)
     server.serve_forever()
