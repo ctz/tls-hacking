@@ -24,6 +24,30 @@ class ProtocolVersion(Enum16):
 
 from .ciphersuites import CipherSuite
 
+class HashAlgorithm(Enum8):
+    NONE = 0
+    MD5 = 1
+    SHA1 = 2
+    SHA224 = 3
+    SHA256 = 4
+    SHA384 = 5
+    SHA512 = 6
+
+class SignatureAlgorithm(Enum8):
+    Anonymous = 0
+    RSA = 1
+    DSA = 2
+    ECDSA = 3
+
+class ClientCertificateType(Enum8):
+    RSASign = 1
+    DSSSign = 2
+    RSAFixedDH = 3
+    DSSFixedDH = 4
+    RSAEphemeralDH = 5
+    DSSEphemeralDH = 6
+    FortezzaDMS = 20
+
 class Compression(Enum8):
     Null = 0
     Deflate = 1
@@ -146,6 +170,12 @@ class ApplicationData(Struct):
     @staticmethod
     def read(f):
         return ApplicationData(data = f.read())
+
+class ECPointFormat(Enum8):
+    Uncompressed = 0
+    ANSIX962CompressedPrime = 1
+    ANSIX962CompressedChar2 = 2
+    MAX = 255
 
 class HeartbeatMessageType(Enum8):
     Request = 1
