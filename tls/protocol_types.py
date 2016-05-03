@@ -398,6 +398,9 @@ class NamedCurve(Enum16):
     secp256r1 = 23
     secp384r1 = 24
     secp521r1 = 25
+    brainpoolp256r1 = 26
+    brainpoolp384r1 = 27
+    brainpoolp512r1 = 28
     arbitrary_explicit_prime_curves = 0xFF01
     arbitrary_explicit_char2_curves = 0xFF02
 
