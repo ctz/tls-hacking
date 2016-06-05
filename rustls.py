@@ -2,10 +2,10 @@ import tls.protocol_types as TY
 import tls.base as BASE
 
 start_enums = """
-use codec::{encode_u8, read_u8, encode_u16, read_u16, Reader, Codec};"""
+use msgs::codec::{encode_u8, read_u8, encode_u16, read_u16, Reader, Codec};"""
 
 enum_def = """
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum %(name)s {
 %(enum_items)s
   Unknown(%(underlying_type)s)
@@ -90,3 +90,5 @@ convert_enum(TY.ServerNameType)
 convert_enum(TY.NamedCurve)
 convert_enum(TY.CipherSuite)
 convert_enum(TY.ECPointFormat)
+convert_enum(TY.HeartbeatMode)
+convert_enum(TY.ECCurveType)

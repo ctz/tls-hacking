@@ -177,6 +177,11 @@ class ECPointFormat(Enum8):
     ANSIX962CompressedChar2 = 2
     MAX = 255
 
+class HeartbeatMode(Enum8):
+    PeerAllowedToSend = 1
+    PeerNotAllowedToSend = 2
+    MAX = 255
+
 class HeartbeatMessageType(Enum8):
     Request = 1
     Response = 2
@@ -297,6 +302,7 @@ class ExtensionType(Enum16):
     SignatureAlgorithms = 13
     UseSRTP = 14
     Heartbeat = 15
+    ALProtocolNegotiation = 16
     Padding = 21 # http://tools.ietf.org/html/draft-agl-tls-padding-03
     SessionTicket = 35
     NextProtocolNegotiation = 0x3374
@@ -372,6 +378,12 @@ class ServerName(Struct):
         sn.body = Read.vec(f, Read.u16, Read.u8)
         return sn
 
+class ECCurveType(Enum8):
+    ExplicitPrime = 1
+    ExplicitChar2 = 2
+    NamedCurve = 3
+    MAX = 0xff
+
 class NamedCurve(Enum16):
     sect163k1 = 1
     sect163r1 = 2
@@ -401,6 +413,8 @@ class NamedCurve(Enum16):
     brainpoolp256r1 = 26
     brainpoolp384r1 = 27
     brainpoolp512r1 = 28
+    X25519 = 29
+    X448 = 30
     arbitrary_explicit_prime_curves = 0xFF01
     arbitrary_explicit_char2_curves = 0xFF02
 
