@@ -47,6 +47,9 @@ class ClientCertificateType(Enum8):
     RSAEphemeralDH = 5
     DSSEphemeralDH = 6
     FortezzaDMS = 20
+    ECDSASign = 64
+    RSAFixedECDH = 65
+    ECDSAFixedECDH = 66
 
 class Compression(Enum8):
     Null = 0
