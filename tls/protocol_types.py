@@ -77,6 +77,7 @@ class HandshakeType(Enum8):
     HelloRequest = 0
     ClientHello = 1
     ServerHello = 2
+    NewSessionTicket = 4
     Certificate = 11
     ServerKeyExchange = 12
     CertificateRequest = 13
@@ -307,6 +308,7 @@ class ExtensionType(Enum16):
     Heartbeat = 15
     ALProtocolNegotiation = 16
     Padding = 21 # http://tools.ietf.org/html/draft-agl-tls-padding-03
+    ExtendedMasterSecret = 23
     SessionTicket = 35
     NextProtocolNegotiation = 0x3374
     ChannelId = 0x754f

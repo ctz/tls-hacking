@@ -1,11 +1,12 @@
 import tls.protocol_types as TY
 import tls.base as BASE
+import sys
 
 start_enums = """
 use msgs::codec::{encode_u8, read_u8, encode_u16, read_u16, Reader, Codec};"""
 
 enum_def = """
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum %(name)s {
 %(enum_items)s
   Unknown(%(underlying_type)s)
@@ -74,21 +75,47 @@ def convert_enum(ty):
 
     print(enum_def % data)
 
-print(start_enums)
-convert_enum(TY.ProtocolVersion)
-convert_enum(TY.HashAlgorithm)
-convert_enum(TY.SignatureAlgorithm)
-convert_enum(TY.ClientCertificateType)
-convert_enum(TY.Compression)
-convert_enum(TY.ContentType)
-convert_enum(TY.HandshakeType)
-convert_enum(TY.AlertLevel)
-convert_enum(TY.AlertDescription)
-convert_enum(TY.HeartbeatMessageType)
-convert_enum(TY.ExtensionType)
-convert_enum(TY.ServerNameType)
-convert_enum(TY.NamedCurve)
-convert_enum(TY.CipherSuite)
-convert_enum(TY.ECPointFormat)
-convert_enum(TY.HeartbeatMode)
-convert_enum(TY.ECCurveType)
+def test_enum(ty):
+    name = ty.__name__
+    table = ty.table()
+    items = list(table.items())
+    items = list(filter(lambda x: isinstance(x[0], int), items))
+    items.sort(key = lambda x: x[0])
+
+    first, last = items[0][1], items[-1][1]
+
+    if issubclass(ty, BASE.Enum8):
+        test_fn = 'test_enum8'
+    else:
+        test_fn = 'test_enum16'
+
+    print('%(test_fn)s::<%(name)s>(%(name)s::%(first)s, %(name)s::%(last)s);' %
+            locals())
+
+types = [
+    TY.ProtocolVersion,
+    TY.HashAlgorithm,
+    TY.SignatureAlgorithm,
+    TY.ClientCertificateType,
+    TY.Compression,
+    TY.ContentType,
+    TY.HandshakeType,
+    TY.AlertLevel,
+    TY.AlertDescription,
+    TY.HeartbeatMessageType,
+    TY.ExtensionType,
+    TY.ServerNameType,
+    TY.NamedCurve,
+    TY.CipherSuite,
+    TY.ECPointFormat,
+    TY.HeartbeatMode,
+    TY.ECCurveType,
+]
+
+if sys.argv[-1] == 'test':
+    for ty in types:
+        test_enum(ty)
+else:
+    print(start_enums)
+    for ty in types:
+        convert_enum(ty)
