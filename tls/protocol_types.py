@@ -18,9 +18,10 @@ class ProtocolVersion(Enum16):
     TLSv1_0 = 0x0301
     TLSv1_1 = 0x0302
     TLSv1_2 = 0x0303
+    TLSv1_3 = 0x0304
     MAX = 0xffff
 
-    _Highest = TLSv1_2
+    _Highest = TLSv1_3
 
 from .ciphersuites import CipherSuite
 
@@ -38,6 +39,24 @@ class SignatureAlgorithm(Enum8):
     RSA = 1
     DSA = 2
     ECDSA = 3
+
+class SignatureScheme(Enum16):
+    RSA_PKCS1_SHA1 = 0x0201
+    RSA_PKCS1_SHA256 = 0x0401
+    RSA_PKCS1_SHA384 = 0x0501
+    RSA_PKCS1_SHA512 = 0x0601
+
+    ECDSA_SHA1_Legacy = 0x0203
+    ECDSA_NISTP256_SHA256 = 0x0403
+    ECDSA_NISTP384_SHA384 = 0x0503
+    ECDSA_NISTP521_SHA512 = 0x0603
+
+    RSA_PSS_SHA256 = 0x0804
+    RSA_PSS_SHA384 = 0x0805
+    RSA_PSS_SHA512 = 0x0806
+
+    ED25519 = 0x0807
+    ED448 = 0x0808
 
 class ClientCertificateType(Enum8):
     RSASign = 1
@@ -78,6 +97,8 @@ class HandshakeType(Enum8):
     ClientHello = 1
     ServerHello = 2
     NewSessionTicket = 4
+    HelloRetryRequest = 6
+    EncryptedExtensions = 8
     Certificate = 11
     ServerKeyExchange = 12
     CertificateRequest = 13
@@ -87,6 +108,7 @@ class HandshakeType(Enum8):
     Finished = 20
     CertificateURL = 21
     CertificateStatus = 22
+    KeyUpdate = 24
     MAX = 0xff
 
 class ChangeCipherSpec(Struct):
@@ -134,10 +156,17 @@ class AlertDescription(Enum8):
     ProtocolVersion = 70
     InsufficientSecurity = 71
     InternalError = 80
+    InappropriateFallback = 86
     UserCanceled = 90
     NoRenegotiation = 100
+    MissingExtension = 109
     UnsupportedExtension = 110
+    CertificateUnobtainable = 111
     UnrecognisedName = 112
+    BadCertificateStatusResponse = 113
+    BadCertificateHashValue = 114
+    UnknownPSKIdentity = 115
+    CertificateRequired = 116
     MAX = 255
 
 class Alert(Struct):
@@ -180,6 +209,14 @@ class ECPointFormat(Enum8):
     ANSIX962CompressedPrime = 1
     ANSIX962CompressedChar2 = 2
     MAX = 255
+
+class PSKKeyExchangeMode(Enum8):
+    PSK_KE = 0
+    PSK_DHE_KE = 1
+
+class KeyUpdateRequest(Enum8):
+    UpdateNotRequested = 0
+    UpdateRequested = 1
 
 class HeartbeatMode(Enum8):
     PeerAllowedToSend = 1
@@ -310,6 +347,13 @@ class ExtensionType(Enum16):
     Padding = 21 # http://tools.ietf.org/html/draft-agl-tls-padding-03
     ExtendedMasterSecret = 23
     SessionTicket = 35
+    KeyShare = 40
+    PreSharedKey = 41
+    EarlyData = 42
+    SupportedVersions = 43
+    Cookie = 44
+    PSKKeyExchangeModes = 45
+    TicketEarlyDataInfo = 46
     NextProtocolNegotiation = 0x3374
     ChannelId = 0x754f
     RenegotiationInfo = 0xff01
@@ -424,6 +468,18 @@ class NamedCurve(Enum16):
     arbitrary_explicit_char2_curves = 0xFF02
 
     MAX = 0xffff
+
+class NamedGroup(Enum16):
+    secp256r1 = 23
+    secp384r1 = 24
+    secp521r1 = 25
+    X25519 = 29
+    X448 = 30
+    FFDHE2048 = 256
+    FFDHE3072 = 257
+    FFDHE4096 = 258
+    FFDHE6144 = 259
+    FFDHE8192 = 260
 
 class EllipticCurvesExtensionBody(Struct):
     def __init__(self, curves = None):

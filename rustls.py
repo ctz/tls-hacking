@@ -106,10 +106,14 @@ types = [
     TY.ExtensionType,
     TY.ServerNameType,
     TY.NamedCurve,
+    TY.NamedGroup,
     TY.CipherSuite,
     TY.ECPointFormat,
     TY.HeartbeatMode,
     TY.ECCurveType,
+    TY.SignatureScheme,
+    TY.PSKKeyExchangeMode,
+    TY.KeyUpdateRequest,
 ]
 
 if sys.argv[-1] == 'test':
