@@ -58,6 +58,10 @@ class SignatureScheme(Enum16):
     ED25519 = 0x0807
     ED448 = 0x0808
 
+class PskKeyExchangeMode(Enum8):
+    KE = 0
+    DHE_KE = 1
+
 class ClientCertificateType(Enum8):
     RSASign = 1
     DSSSign = 2
