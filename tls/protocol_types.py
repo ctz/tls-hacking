@@ -97,6 +97,7 @@ class HandshakeType(Enum8):
     ClientHello = 1
     ServerHello = 2
     NewSessionTicket = 4
+    EndOfEarlyData = 5
     HelloRetryRequest = 6
     EncryptedExtensions = 8
     Certificate = 11
@@ -109,6 +110,7 @@ class HandshakeType(Enum8):
     CertificateURL = 21
     CertificateStatus = 22
     KeyUpdate = 24
+    MessageHash = 254
     MAX = 0xff
 
 class ChangeCipherSpec(Struct):
@@ -354,6 +356,8 @@ class ExtensionType(Enum16):
     Cookie = 44
     PSKKeyExchangeModes = 45
     TicketEarlyDataInfo = 46
+    CertificateAuthorities = 47
+    OIDFilters = 48
     NextProtocolNegotiation = 0x3374
     ChannelId = 0x754f
     RenegotiationInfo = 0xff01
