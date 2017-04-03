@@ -118,6 +118,7 @@ types = [
     TY.SignatureScheme,
     TY.PSKKeyExchangeMode,
     TY.KeyUpdateRequest,
+    TY.CertificateStatusType,
 ]
 
 if sys.argv[-1] == 'test':

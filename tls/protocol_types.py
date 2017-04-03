@@ -70,6 +70,9 @@ class ClientCertificateType(Enum8):
     RSAFixedECDH = 65
     ECDSAFixedECDH = 66
 
+class CertificateStatusType(Enum8):
+    OCSP = 1
+
 class Compression(Enum8):
     Null = 0
     Deflate = 1
