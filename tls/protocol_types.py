@@ -172,6 +172,7 @@ class AlertDescription(Enum8):
     BadCertificateHashValue = 114
     UnknownPSKIdentity = 115
     CertificateRequired = 116
+    NoApplicationProtocol = 120
     MAX = 255
 
 class Alert(Struct):
