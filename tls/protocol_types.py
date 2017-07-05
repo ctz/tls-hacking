@@ -350,6 +350,7 @@ class ExtensionType(Enum16):
     UseSRTP = 14
     Heartbeat = 15
     ALProtocolNegotiation = 16
+    SCT = 18
     Padding = 21 # http://tools.ietf.org/html/draft-agl-tls-padding-03
     ExtendedMasterSecret = 23
     SessionTicket = 35

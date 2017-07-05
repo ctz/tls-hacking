@@ -10,37 +10,10 @@ enum_def = """
 /// The `%(name)s` TLS protocol enum.  Values in this enum are taken
 /// from the various RFCs covering TLS, and are listed by IANA.
 /// The `Unknown` item is used when processing unrecognised ordinals.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum %(name)s {
+enum_builder! {@%(underlying_type)s
+    EnumName: %(name)s;
+    EnumVal{
 %(enum_items)s
-    Unknown(%(underlying_type)s),
-}
-
-impl Codec for %(name)s {
-    fn encode(&self, bytes: &mut Vec<u8>) {
-        %(encode)s;
-    }
-
-    fn read(r: &mut Reader) -> Option<%(name)s> {
-        let u = %(decode)s;
-
-        if u.is_none() {
-            return None;
-        }
-
-        Some(match u.unwrap() {
-%(match_int_enum)s
-            x => %(name)s::Unknown(x),
-        })
-    }
-}
-
-impl %(name)s {
-    pub fn get_%(underlying_type)s(&self) -> %(underlying_type)s {
-        match *self {
-%(match_enum_int)s
-            %(name)s::Unknown(v) => v,
-        }
     }
 }"""
 
@@ -54,27 +27,17 @@ def convert_enum(ty):
 
     if issubclass(ty, BASE.Enum8):
         underlying_type = 'u8'
-        encode = 'encode_u8(self.get_u8(), bytes)'
-        decode = 'read_u8(r)'
         val_format = lambda x: '0x%02x' % x
     else:
         underlying_type = 'u16'
-        encode = 'encode_u16(self.get_u16(), bytes)'
-        decode = 'read_u16(r)'
         val_format = lambda x: '0x%04x' % x
 
-    enum_items = '\n'.join('    %s,' % x for _, x in items)
-    match_enum_int = '\n'.join('            %s::%s => %s,' % (name, item, val_format(value)) for value, item in items)
-    match_int_enum = '\n'.join('            %s => %s::%s,' % (val_format(value), name, item) for value, item in items)
+    enum_items = ',\n'.join('        %s => %s' % (x, val_format(v)) for v, x in items)
 
     data = dict(
             name = name,
             enum_items = enum_items,
-            underlying_type = underlying_type,
-            encode = encode,
-            decode = decode,
-            match_enum_int = match_enum_int,
-            match_int_enum = match_int_enum
+            underlying_type = underlying_type.upper(),
             )
 
     print(enum_def % data)
