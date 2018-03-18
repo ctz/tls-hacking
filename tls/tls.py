@@ -138,6 +138,21 @@ def TLSv1_0_PRF(outlen, secret, label, seed):
     return xor(p_md5(outlen, secret[:ls1], label + seed),
                p_sha1(outlen, secret[-ls2:], label + seed))
 
+def TLSv1_2_PRF(outlen, hashalg, secret, label, seed):
+    def p(outlen, hashalg, secret, seed):
+        ret = bytes()
+        current_a = bytes(hmac.new(secret, seed, hashalg).digest())
+
+        while len(ret) < outlen:
+            p_term = bytes(hmac.new(secret, current_a + seed, hashalg).digest())
+            ret += p_term
+
+            current_a = bytes(hmac.new(secret, current_a, hashalg).digest())
+
+        return ret[:outlen]
+
+    return p(outlen, hashalg, secret, label + seed)
+
 if __name__ == '__main__':
     v = ContentType.Handshake
     name = ContentType.lookup(v)
@@ -160,3 +175,9 @@ if __name__ == '__main__':
     master_secret = TLSv1_0_PRF(104, secret, label, seed)
     assert len(master_secret) == 104
     assert master_secret == bytes.fromhex('d3d4d1e349b5d515044666d51de32bab258cb521b6b053463e354832fd976754443bcf9a296519bc289abcbc1187e4ebd31e602353776c408aafb74cbc85eff69255f9788faa184cbb957a9819d84a5d7eb006eb459d3ae8de9810454b8b2d8f1afbc655a8c9a013')
+
+    secret = b"\x9b\xbe\x43\x6b\xa9\x40\xf0\x17\xb1\x76\x52\x84\x9a\x71\xdb\x35"
+    seed = b"\xa0\xba\x9f\x93\x6c\xda\x31\x18\x27\xa6\xf7\x96\xff\xd5\x19\x8c"
+    label = b"test label"
+    master_secret = TLSv1_2_PRF(100, hashlib.sha256, secret, label, seed)
+    assert master_secret == bytes.fromhex('e3f229ba727be17b8d122620557cd453c2aab21d07c3d495329b52d4e61edb5a6b301791e90d35c9c9a46b4e14baf9af0fa022f7077def17abfd3797c0564bab4fbc91666e9def9b97fce34f796789baa48082d122ee42c5a72e5a5110fff70187347b66')
