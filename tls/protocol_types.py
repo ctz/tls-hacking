@@ -606,7 +606,7 @@ class ServerHello(Struct):
 
 class ServerHelloDone(Struct):
     def encode(self): return []
-    def to_json(): return {}
+    def to_json(self): return {}
     @staticmethod
     def read(f):
         return ServerHelloDone()
