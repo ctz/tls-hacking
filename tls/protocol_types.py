@@ -354,7 +354,6 @@ class ExtensionType(Enum16):
     Padding = 21 # http://tools.ietf.org/html/draft-agl-tls-padding-03
     ExtendedMasterSecret = 23
     SessionTicket = 35
-    KeyShare = 40
     PreSharedKey = 41
     EarlyData = 42
     SupportedVersions = 43
@@ -363,6 +362,9 @@ class ExtensionType(Enum16):
     TicketEarlyDataInfo = 46
     CertificateAuthorities = 47
     OIDFilters = 48
+    PostHandshakeAuth = 49
+    SignatureAlgorithmsCert = 50
+    KeyShare = 51
     NextProtocolNegotiation = 0x3374
     ChannelId = 0x754f
     RenegotiationInfo = 0xff01
